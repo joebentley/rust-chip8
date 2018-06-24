@@ -3,15 +3,16 @@ use display::Display;
 use rand;
 
 pub struct Cpu {
-    pub v_reg: [u8; 16],
+    pub v_reg: [u8; 0xF + 1], // 16
     pub i_reg: u16,
     pub delay_timer: u8,
     pub sound_timer: u8,
     pub prog_counter: u16,
     pub stack_pointer: u8,
 
-    pub memory: [u8; 4096],
-    pub stack: [u16; 16],
+    // Program/data memory starts at 0x200
+    pub memory: [u8; 0xFFF + 1], // 4,096 bytes
+    pub stack: [u16; 0xF + 1], // 16
 
     pub display: Display
 }
@@ -23,6 +24,18 @@ impl Cpu {
             prog_counter: 0, stack_pointer: 0,
             memory: [0; 4096], stack: [0; 16], display: Display::new()
         }
+    }
+
+    pub fn write_bytes(&mut self, addr: u16, bytes: &[u8]) -> bool {
+        let addr = addr as usize;
+        if addr + bytes.len() > 0xFFF + 1 {
+            return false;
+        }
+
+        for (i, &byte) in bytes.iter().enumerate() {
+            self.memory[addr + i] = byte;
+        }
+        true
     }
 
     pub fn execute(&mut self, instruction: u16) {
@@ -343,5 +356,18 @@ mod tests {
         cpu.execute(0x6034);
         cpu.execute(0xB123);
         assert_eq!(cpu.prog_counter, 0x34 + 0x123);
+    }
+
+    #[test]
+    fn writing_bytes() {
+        let bytes = &[0x33, 0x45, 0x70, 0x33, 0x87, 0x29];
+        let mut cpu = Cpu::new();
+        assert!(cpu.write_bytes(0x200, bytes));
+
+        for i in 0..3 {
+            assert_eq!(cpu.memory[0x200 + i], bytes[i])
+        }
+
+        assert!(!cpu.write_bytes(0xFFC, bytes));
     }
 }
