@@ -32,6 +32,8 @@ pub struct Cpu {
     pub memory: [u8; 0xFFF + 1], // 4,096 bytes
     pub stack: [u16; 0xF + 1], // 16
 
+    pub keys: u16, // bitfield for keys pressed
+
     pub display: Display
 }
 
@@ -40,7 +42,8 @@ impl Cpu {
         Cpu {
             v_reg: [0; 16], i_reg: 0, delay_timer: 0, sound_timer: 0,
             prog_counter: 0, stack_pointer: 0,
-            memory: [0; 4096], stack: [0; 16], display: Display::new()
+            memory: [0; 4096], stack: [0; 16], keys: 0,
+            display: Display::new()
         }
     }
 
@@ -212,6 +215,22 @@ impl Cpu {
                     self.v_reg[0xF] = overwrote as u8;
 
                     self.display.pixels[y as usize + i as usize] ^= line;
+                }
+            },
+            // Ex9E - SKP Vx: skip next instruction if key with the value of Vx is pressed
+            a if a & 0xE09E == 0xE09E => {
+                let x = get_nth_hex_digit(a as u32, 2);
+
+                if self.keys & ((0b0000_0001 << self.v_reg[x as usize]) as u16) != 0 {
+                    self.prog_counter += 2;
+                }
+            },
+            // ExA1 - SKNP Vx: skip next instruction if key with the value of Vx is not pressed
+            a if a & 0xE0A1 == 0xE0A1 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+
+                if self.keys & ((0b0000_0001 << self.v_reg[x as usize]) as u16) == 0 {
+                    self.prog_counter += 2;
                 }
             }
             _ => {}
@@ -447,6 +466,23 @@ mod tests {
         for i in 0..3 {
             assert_eq!(cpu.display.pixels[y as usize + i], 0);
         }
+    }
+
+    #[test]
+    fn ins_skp() {
+        let mut cpu = Cpu::new();
+        cpu.execute(0x6504);
+        cpu.execute(0xE59E);
+        assert_eq!(cpu.prog_counter, 0);
+        cpu.keys = 0b0000_0000_0001_0100;
+        cpu.execute(0xE59E);
+        assert_eq!(cpu.prog_counter, 2);
+        cpu.execute(0x6304);
+        cpu.execute(0xE3A1);
+        assert_eq!(cpu.prog_counter, 2);
+        cpu.execute(0x6303);
+        cpu.execute(0xE3A1);
+        assert_eq!(cpu.prog_counter, 4);
     }
 
     #[test]
