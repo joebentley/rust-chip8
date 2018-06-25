@@ -1,6 +1,8 @@
 
 /// Gets the nth hex digit starting from the least significant digit
 ///
+/// TODO: make this into a macro?
+///
 /// # Examples
 ///
 /// ```

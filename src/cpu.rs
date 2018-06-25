@@ -1,6 +1,24 @@
 use utils::get_nth_hex_digit;
-use display::Display;
 use rand;
+
+const NUM_ROWS: usize = 32;
+
+pub struct Display {
+    // i64 x 32 rows (64x32 monochrome)
+    pub pixels: [u64; NUM_ROWS]
+}
+
+impl Display {
+    pub fn new() -> Display {
+        Display { pixels: [0; NUM_ROWS] }
+    }
+
+    pub fn clear(&mut self) {
+        for i in 0..NUM_ROWS {
+            self.pixels[i] = 0x00;
+        }
+    }
+}
 
 pub struct Cpu {
     pub v_reg: [u8; 0xF + 1], // 16
@@ -171,7 +189,30 @@ impl Cpu {
             // Dxyn - DRW Vx, Vy, nibble
             // display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
             a if a < 0xE000 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                let y = get_nth_hex_digit(a as u32, 1);
+                let n = get_nth_hex_digit(a as u32, 0);
 
+                let x = self.v_reg[x as usize];
+                let y = self.v_reg[y as usize];
+
+                for i in 0..n {
+                    let mut line = self.memory[self.i_reg as usize + i as usize] as u64;
+                    let mut mask = 0b1111_1111 as u64;
+                    // Wrap sprite around edge of screen
+                    let x_to_edge = 64 - x;
+                    if x_to_edge < 8 {
+                        line = line << (64 - 8 + x_to_edge) | line >> (8 - x_to_edge);
+                        mask = mask << (64 - 8 + x_to_edge) | mask >> (8 - x_to_edge);
+                    } else {
+                        line = line << (64 - 8 - x);
+                        mask = mask << (64 - 8 - x);
+                    }
+                    let overwrote = line & self.display.pixels[y as usize + i as usize] & mask != 0;
+                    self.v_reg[0xF] = overwrote as u8;
+
+                    self.display.pixels[y as usize + i as usize] ^= line;
+                }
             }
             _ => {}
         }
@@ -356,6 +397,56 @@ mod tests {
         cpu.execute(0x6034);
         cpu.execute(0xB123);
         assert_eq!(cpu.prog_counter, 0x34 + 0x123);
+    }
+
+    #[test]
+    fn ins_draw() {
+        let sprite = &[
+            0b0101_1110,
+            0b0101_1001,
+            0b0000_0001
+        ];
+
+        let mut cpu = Cpu::new();
+        cpu.write_bytes(0x234, sprite);
+        cpu.execute(0xA234);
+
+        let x = 6;
+        let y = 10;
+        cpu.execute(0x6000 + x);
+        cpu.execute(0x6100 + y);
+        cpu.execute(0xD013);
+
+        assert_eq!(cpu.v_reg[0xF], 0);
+        for i in 0..3 {
+            println!("{:b}", cpu.display.pixels[y as usize + i]);
+            assert_eq!(cpu.display.pixels[y as usize + i], (sprite[i] as u64) << (64 - 8 - x));
+        }
+
+        // Overwriting current pixels
+        cpu.execute(0xD013);
+        assert_eq!(cpu.v_reg[0xF], 1);
+        for i in 0..3 {
+            assert_eq!(cpu.display.pixels[y as usize + i], 0);
+        }
+
+        // Wrapping around edge of screen
+        let x = 60;
+        let x_to_edge = 64 - x;
+        cpu.execute(0x6000 + x);
+        cpu.execute(0xD013);
+        for i in 0..3 {
+            assert_eq!(cpu.display.pixels[y as usize + i],
+                       (sprite[i] as u64) >> (8 - x_to_edge) | (sprite[i] as u64) << (64 - 8 + x_to_edge));
+        }
+        assert_eq!(cpu.v_reg[0xF], 0);
+
+        // Overwriting current pixels
+        cpu.execute(0xD013);
+        assert_eq!(cpu.v_reg[0xF], 1);
+        for i in 0..3 {
+            assert_eq!(cpu.display.pixels[y as usize + i], 0);
+        }
     }
 
     #[test]
