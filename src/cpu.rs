@@ -33,6 +33,8 @@ pub struct Cpu {
     pub stack: [u16; 0xF + 1], // 16
 
     pub keys: u16, // bitfield for keys pressed
+    pub running: bool, // set to false if waiting for a key press
+    pub key_pause_register_to_set: u8, // register to set if waiting for key, set by 0xFx0A
 
     pub display: Display
 }
@@ -42,9 +44,26 @@ impl Cpu {
         Cpu {
             v_reg: [0; 16], i_reg: 0, delay_timer: 0, sound_timer: 0,
             prog_counter: 0, stack_pointer: 0,
-            memory: [0; 4096], stack: [0; 16], keys: 0,
+            memory: [0; 4096], stack: [0; 16], keys: 0, running: true, key_pause_register_to_set: 0,
             display: Display::new()
         }
+    }
+
+    /// Set key to down, where `key` is between 0x1 and 0xF
+    /// If the cpu is currently paused due to a call to 0xFx0A, it will set register Vx to key
+    pub fn press_key(&mut self, key: u8) -> bool {
+        if !(0x1 <= key && key <= 0xF) {
+            return false
+        }
+
+        self.keys |= 0x1 << (key - 1);
+
+        if !self.running {
+            self.v_reg[self.key_pause_register_to_set as usize] = key;
+            self.running = true;
+        }
+
+        true
     }
 
     pub fn write_bytes(&mut self, addr: u16, bytes: &[u8]) -> bool {
@@ -232,6 +251,17 @@ impl Cpu {
                 if self.keys & ((0b0000_0001 << self.v_reg[x as usize]) as u16) == 0 {
                     self.prog_counter += 2;
                 }
+            },
+            // Fx07 - LD Vx, DT: set Vx = delay timer value
+            a if a & 0xF007 == 0xF007 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                self.v_reg[x as usize] = self.delay_timer;
+            },
+            // Fx0A - LD Vx, K: wait for a key press, store the value of the key in Vx
+            a if a & 0xF00A == 0xF00A => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                self.key_pause_register_to_set = x;
+                self.running = false;
             }
             _ => {}
         }
@@ -486,6 +516,17 @@ mod tests {
     }
 
     #[test]
+    fn ins_wait_for_keypress() {
+        let mut cpu = Cpu::new();
+        cpu.execute(0xF30A);
+        assert!(!cpu.running);
+        assert_eq!(cpu.key_pause_register_to_set, 0x3);
+        cpu.press_key(0xA);
+        assert_eq!(cpu.v_reg[0x3], 0xA);
+        assert!(cpu.running);
+    }
+
+    #[test]
     fn writing_bytes() {
         let bytes = &[0x33, 0x45, 0x70, 0x33, 0x87, 0x29];
         let mut cpu = Cpu::new();
@@ -496,5 +537,14 @@ mod tests {
         }
 
         assert!(!cpu.write_bytes(0xFFC, bytes));
+    }
+
+    #[test]
+    fn press_key() {
+        let mut cpu = Cpu::new();
+        assert!(cpu.press_key(0x3));
+        assert_eq!(cpu.keys, 0b0000_0000_0000_0100);
+        assert!(!cpu.press_key(0x0));
+        assert!(!cpu.press_key(0x10));
     }
 }
