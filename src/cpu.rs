@@ -262,7 +262,17 @@ impl Cpu {
                 let x = get_nth_hex_digit(a as u32, 2);
                 self.key_pause_register_to_set = x;
                 self.running = false;
-            }
+            },
+            // Fx15 - LD DT, Vx: set delay timer = Vx
+            a if a & 0xF015 == 0xF015 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                self.delay_timer = self.v_reg[x as usize];
+            },
+            // Fx18 - LD ST, Vx: set sound timer = Vx
+            a if a & 0xF018 == 0xF018 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                self.sound_timer = self.v_reg[x as usize];
+            },
             _ => {}
         }
     }
@@ -524,6 +534,16 @@ mod tests {
         cpu.press_key(0xA);
         assert_eq!(cpu.v_reg[0x3], 0xA);
         assert!(cpu.running);
+    }
+
+    #[test]
+    fn ins_ld_dt_st() {
+        let mut cpu = Cpu::new();
+        cpu.execute(0x6304);
+        cpu.execute(0xF315);
+        assert_eq!(cpu.delay_timer, 0x4);
+        cpu.execute(0xF318);
+        assert_eq!(cpu.sound_timer, 0x4);
     }
 
     #[test]
