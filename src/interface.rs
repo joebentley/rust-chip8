@@ -12,7 +12,6 @@ use termion::async_stdin;
 
 fn draw_screen(display: &Display) {
     for (y, row) in display.pixels.iter().enumerate() {
-        print!("{}", termion::cursor::Goto(1, (y + 1) as u16));
 
         let mut display_row = String::new();
 
@@ -20,6 +19,7 @@ fn draw_screen(display: &Display) {
             let mask = 1 << i;
             let filled = (row & mask) >> i != 0;
             if filled {
+                print!("{}", termion::cursor::Goto(1, (y + 1) as u16));
                 display_row += "x";
             } else {
                 display_row += " ";
@@ -110,14 +110,33 @@ pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
 
         let b = stdin.next();
         match b {
-            // q to quit
-            Some(Ok(b'q')) => break,
-            _ => {}
-        }
+            // ; to quit
+            Some(Ok(b';')) => break,
+
+            // key map
+            Some(Ok(b'1')) => cpu.press_key(0x1),
+            Some(Ok(b'2')) => cpu.press_key(0x2),
+            Some(Ok(b'3')) => cpu.press_key(0x3),
+            Some(Ok(b'4')) => cpu.press_key(0xC),
+            Some(Ok(b'q')) => cpu.press_key(0x4),
+            Some(Ok(b'w')) => cpu.press_key(0x5),
+            Some(Ok(b'e')) => cpu.press_key(0x6),
+            Some(Ok(b'r')) => cpu.press_key(0xD),
+            Some(Ok(b'a')) => cpu.press_key(0x7),
+            Some(Ok(b's')) => cpu.press_key(0x8),
+            Some(Ok(b'd')) => cpu.press_key(0x9),
+            Some(Ok(b'f')) => cpu.press_key(0xE),
+            Some(Ok(b'z')) => cpu.press_key(0xA),
+            Some(Ok(b'x')) => cpu.press_key(0x0),
+            Some(Ok(b'c')) => cpu.press_key(0xB),
+            Some(Ok(b'v')) => cpu.press_key(0xF),
+            _ => true
+        };
 
         stdout.flush().unwrap();
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(Duration::from_millis(1));
     }
+
     print!("{}", termion::cursor::Show);
 }
 

@@ -275,13 +275,17 @@ impl Cpu {
                     let mut line = self.memory[self.i_reg as usize + i as usize] as u64;
                     let mut mask = 0b1111_1111 as u64;
                     // Wrap sprite around edge of screen
-                    let x_to_edge = 64 - x;
+                    // wrapping_sub etc. is to make sure there are no runtime overflow errors,
+                    // it is not (directly) related to the sprite wrapping around the screen!
+                    let x_to_edge = 64_u8.wrapping_sub(x);
                     if x_to_edge < 8 {
-                        line = line << (64 - 8 + x_to_edge) | line >> (8 - x_to_edge);
-                        mask = mask << (64 - 8 + x_to_edge) | mask >> (8 - x_to_edge);
+                        let shift = (64 - 8_u32).wrapping_add(x_to_edge as u32);
+                        line = line << shift | line >> (8 - x_to_edge);
+                        mask = mask << shift | mask >> (8 - x_to_edge);
                     } else {
-                        line = line << (64 - 8 - x);
-                        mask = mask << (64 - 8 - x);
+                        let shift = (64 - 8_u32).wrapping_sub(x as u32);
+                        line = line.wrapping_shl(shift);
+                        mask = mask.wrapping_shl(shift);
                     }
                     let pixel_row = (y as usize + i as usize) % 32;
 
