@@ -304,6 +304,18 @@ impl Cpu {
             a if a & 0xF0FF == 0xF029 => {
                 let x = get_nth_hex_digit(a as u32, 2);
                 self.i_reg = self.v_reg[x as usize] as u16 * 5;
+            },
+            // Fx33 - LD B, Vx: store BCD representation of Vx in memory locations I, I+1, and I+2
+            a if a & 0xF0FF == 0xF033 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                let n = self.v_reg[x as usize];
+                // Convert to string to access digits
+                let s: String = n.to_string();
+
+                for (i, ch) in s.chars().enumerate() {
+                    let n = ch.to_digit(10).unwrap() as u8;
+                    self.memory[self.i_reg as usize + i] = n;
+                }
             }
             _ => {}
         }
@@ -594,6 +606,17 @@ mod tests {
         cpu.execute(0x6504);
         cpu.execute(0xF529);
         assert_eq!(cpu.i_reg, 4 * 5);
+    }
+
+    #[test]
+    fn ins_ld_bcd() {
+        let mut cpu = Cpu::new();
+        cpu.execute(0x65FF);
+        cpu.execute(0xA200);
+        cpu.execute(0xF533);
+        assert_eq!(cpu.memory[0x200], 2);
+        assert_eq!(cpu.memory[0x201], 5);
+        assert_eq!(cpu.memory[0x202], 5);
     }
 
     #[test]
