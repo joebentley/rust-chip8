@@ -19,6 +19,11 @@ fn print_debug_info(cpu: &Cpu) {
     print!("I = {:X}", cpu.i_reg);
     print!("{}", termion::cursor::Goto(1, 18));
     print!("PC = {:X}", cpu.prog_counter);
+    print!("{}", termion::cursor::Goto(1, 19));
+    print!("SP = {:X}", cpu.stack_pointer);
+
+    print!("{}", termion::cursor::Goto(1, 24));
+    print!("press q to exit");
 }
 
 fn load_cpu_from_program_file(filepath: Option<&String>) -> (Cpu, bool) {
@@ -61,7 +66,11 @@ pub fn run_terminal(filepath: Option<&String>) {
 
     loop {
         print!("{}", termion::clear::All);
-        print_debug_info(&cpu);
+
+        if example_program {
+            print_debug_info(&cpu);
+        }
+
         cpu.tick();
 
         if !cpu.running {
