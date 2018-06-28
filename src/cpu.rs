@@ -41,12 +41,34 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn new() -> Cpu {
-        Cpu {
+        let mut cpu = Cpu {
             v_reg: [0; 16], i_reg: 0, delay_timer: 0, sound_timer: 0,
             prog_counter: 0, stack_pointer: 0,
             memory: [0; 4096], stack: [0; 16], keys: 0, running: true, key_pause_register_to_set: 0,
             display: Display::new()
-        }
+        };
+
+        // Add font data
+        assert!(cpu.write_bytes(0,
+            &[0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+              0x20, 0x60, 0x20, 0x20, 0x70, // 1
+              0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+              0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+              0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+              0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+              0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+              0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+              0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+              0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+              0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+              0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+              0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+              0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+              0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+              0xF0, 0x80, 0xF0, 0x80, 0x80] // F
+        ));
+
+        cpu
     }
 
     /// Set key to down, where `key` is between 0x1 and 0xF
@@ -276,8 +298,12 @@ impl Cpu {
             // Fx1E - ADD I, Vx: set I = I + Vx
             a if a & 0xF0FF == 0xF01E => {
                 let x = get_nth_hex_digit(a as u32, 2);
-                println!("Hello {}", x);
                 self.i_reg += self.v_reg[x as usize] as u16;
+            },
+            // Fx29 - LD F, Vx: set I = location of sprite for digit Vx
+            a if a & 0xF0FF == 0xF029 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                self.i_reg = self.v_reg[x as usize] as u16 * 5;
             }
             _ => {}
         }
@@ -560,6 +586,14 @@ mod tests {
         assert_eq!(cpu.delay_timer, 0x4);
         cpu.execute(0xF318);
         assert_eq!(cpu.sound_timer, 0x4);
+    }
+
+    #[test]
+    fn ins_ld_font_sprite() {
+        let mut cpu = Cpu::new();
+        cpu.execute(0x6504);
+        cpu.execute(0xF529);
+        assert_eq!(cpu.i_reg, 4 * 5);
     }
 
     #[test]
