@@ -1,5 +1,6 @@
 use utils::get_nth_hex_digit;
 use rand;
+use std::time;
 
 const NUM_ROWS: usize = 32;
 
@@ -25,6 +26,7 @@ pub struct Cpu {
     pub i_reg: u16,
     pub delay_timer: u8,
     pub sound_timer: u8,
+    last_timer_tick: time::Instant, // Time of last timer tick
     pub prog_counter: u16,
     pub stack_pointer: u8,
 
@@ -34,7 +36,7 @@ pub struct Cpu {
 
     pub keys: u16, // bitfield for keys pressed
     pub running: bool, // set to false if waiting for a key press
-    pub key_pause_register_to_set: u8, // register to set if waiting for key, set by 0xFx0A
+    key_pause_register_to_set: u8, // register to set if waiting for key, set by 0xFx0A
 
     pub display: Display
 }
@@ -43,7 +45,7 @@ impl Cpu {
     pub fn new() -> Cpu {
         let mut cpu = Cpu {
             v_reg: [0; 16], i_reg: 0, delay_timer: 0, sound_timer: 0,
-            prog_counter: 0, stack_pointer: 0,
+            prog_counter: 0, stack_pointer: 0, last_timer_tick: time::Instant::now(),
             memory: [0; 4096], stack: [0; 16], keys: 0, running: true, key_pause_register_to_set: 0,
             display: Display::new()
         };
@@ -107,6 +109,18 @@ impl Cpu {
         // instructions following it will be properly situated in RAM."
 
         if self.running {
+            // delay and sound timers
+            if self.last_timer_tick.elapsed().subsec_millis() > 17 { // 1 / 60 == 0.1666666667
+                self.last_timer_tick = time::Instant::now();
+
+                if self.sound_timer > 0 {
+                    self.sound_timer -= 1;
+                }
+                if self.delay_timer > 0 {
+                    self.delay_timer -= 1;
+                }
+            }
+
             let ins = (self.memory[self.prog_counter as usize] as u16) << 8
                 | self.memory[self.prog_counter as usize + 1] as u16;
 

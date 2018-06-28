@@ -22,7 +22,7 @@ fn draw_screen(display: &Display) {
             if filled {
                 display_row += "x";
             } else {
-                display_row += ".";
+                display_row += " ";
             }
         }
 
@@ -116,7 +116,7 @@ pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
         }
 
         stdout.flush().unwrap();
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(50));
     }
     print!("{}", termion::cursor::Show);
 }
