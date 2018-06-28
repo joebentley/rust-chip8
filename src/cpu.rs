@@ -237,7 +237,7 @@ impl Cpu {
                 }
             },
             // Ex9E - SKP Vx: skip next instruction if key with the value of Vx is pressed
-            a if a & 0xE09E == 0xE09E => {
+            a if a & 0xF0FF == 0xE09E => {
                 let x = get_nth_hex_digit(a as u32, 2);
 
                 if self.keys & ((0b0000_0001 << self.v_reg[x as usize]) as u16) != 0 {
@@ -245,7 +245,7 @@ impl Cpu {
                 }
             },
             // ExA1 - SKNP Vx: skip next instruction if key with the value of Vx is not pressed
-            a if a & 0xE0A1 == 0xE0A1 => {
+            a if a & 0xF0FF == 0xE0A1 => {
                 let x = get_nth_hex_digit(a as u32, 2);
 
                 if self.keys & ((0b0000_0001 << self.v_reg[x as usize]) as u16) == 0 {
@@ -253,26 +253,32 @@ impl Cpu {
                 }
             },
             // Fx07 - LD Vx, DT: set Vx = delay timer value
-            a if a & 0xF007 == 0xF007 => {
+            a if a & 0xF0FF == 0xF007 => {
                 let x = get_nth_hex_digit(a as u32, 2);
                 self.v_reg[x as usize] = self.delay_timer;
             },
             // Fx0A - LD Vx, K: wait for a key press, store the value of the key in Vx
-            a if a & 0xF00A == 0xF00A => {
+            a if a & 0xF0FF == 0xF00A => {
                 let x = get_nth_hex_digit(a as u32, 2);
                 self.key_pause_register_to_set = x;
                 self.running = false;
             },
             // Fx15 - LD DT, Vx: set delay timer = Vx
-            a if a & 0xF015 == 0xF015 => {
+            a if a & 0xF0FF == 0xF015 => {
                 let x = get_nth_hex_digit(a as u32, 2);
                 self.delay_timer = self.v_reg[x as usize];
             },
             // Fx18 - LD ST, Vx: set sound timer = Vx
-            a if a & 0xF018 == 0xF018 => {
+            a if a & 0xF0FF == 0xF018 => {
                 let x = get_nth_hex_digit(a as u32, 2);
                 self.sound_timer = self.v_reg[x as usize];
             },
+            // Fx1E - ADD I, Vx: set I = I + Vx
+            a if a & 0xF0FF == 0xF01E => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                println!("Hello {}", x);
+                self.i_reg += self.v_reg[x as usize] as u16;
+            }
             _ => {}
         }
     }
@@ -394,6 +400,16 @@ mod tests {
         cpu.execute(0x8234);
         assert_eq!(cpu.v_reg[0x2], (0x34 + 0x56 as u8).wrapping_add(0xFF));
         assert_eq!(cpu.v_reg[0xF], 1);
+    }
+
+    #[test]
+    fn ins_add_i_vx() {
+        let mut cpu = Cpu::new();
+        cpu.execute(0x6210);
+        cpu.execute(0xF21E);
+        assert_eq!(cpu.i_reg, 0x10);
+        cpu.execute(0xF21E);
+        assert_eq!(cpu.i_reg, 0x20);
     }
 
     #[test]
