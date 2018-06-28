@@ -316,6 +316,22 @@ impl Cpu {
                     let n = ch.to_digit(10).unwrap() as u8;
                     self.memory[self.i_reg as usize + i] = n;
                 }
+            },
+            // Fx55 - LD [I], Vx: store registers V0 through Vx in memory starting at location I
+            a if a & 0xF0FF == 0xF055 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                // TODO: bounds check
+                for i in 0..(x + 1) {
+                    self.memory[self.i_reg as usize + i as usize] = self.v_reg[i as usize];
+                }
+            },
+            // Fx65 - LD Vx, [I]: read registers V0 through Vx from memory starting at location I
+            a if a & 0xF0FF == 0xF065 => {
+                let x = get_nth_hex_digit(a as u32, 2);
+                // TODO: bounds check
+                for i in 0..(x + 1) {
+                    self.v_reg[i as usize] = self.memory[self.i_reg as usize + i as usize];
+                }
             }
             _ => {}
         }
@@ -617,6 +633,28 @@ mod tests {
         assert_eq!(cpu.memory[0x200], 2);
         assert_eq!(cpu.memory[0x201], 5);
         assert_eq!(cpu.memory[0x202], 5);
+    }
+
+    #[test]
+    fn ins_ld_registers() {
+        let mut cpu = Cpu::new();
+        cpu.execute(0x6012);
+        cpu.execute(0x6113);
+        cpu.execute(0x6214);
+        cpu.execute(0xA200);
+        cpu.execute(0xF255);
+        assert_eq!(cpu.memory[0x200], 0x12);
+        assert_eq!(cpu.memory[0x201], 0x13);
+        assert_eq!(cpu.memory[0x202], 0x14);
+        assert_eq!(cpu.memory[0x203], 0);
+        cpu.execute(0x6000);
+        cpu.execute(0x6100);
+        cpu.execute(0x6200);
+        cpu.execute(0xF265);
+        assert_eq!(cpu.v_reg[0], 0x12);
+        assert_eq!(cpu.v_reg[1], 0x13);
+        assert_eq!(cpu.v_reg[2], 0x14);
+        assert_eq!(cpu.v_reg[3], 0);
     }
 
     #[test]
