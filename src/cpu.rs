@@ -4,7 +4,7 @@ use rand;
 const NUM_ROWS: usize = 32;
 
 pub struct Display {
-    // i64 x 32 rows (64x32 monochrome)
+    // u64 x 32 rows (64x32 monochrome)
     pub pixels: [u64; NUM_ROWS]
 }
 

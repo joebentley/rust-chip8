@@ -1,5 +1,5 @@
 use termion;
-use cpu::Cpu;
+use cpu::{Cpu, Display};
 use std::fs;
 use std::thread;
 use std::time::Duration;
@@ -9,6 +9,26 @@ use std::path::Path;
 
 use termion::raw::IntoRawMode;
 use termion::async_stdin;
+
+fn draw_screen(display: &Display) {
+    for (y, row) in display.pixels.iter().enumerate() {
+        print!("{}", termion::cursor::Goto(1, (y + 1) as u16));
+
+        let mut display_row = String::new();
+
+        for i in (0..64).rev() {
+            let mask = 1 << i;
+            let filled = (row & mask) >> i != 0;
+            if filled {
+                display_row += "x";
+            } else {
+                display_row += ".";
+            }
+        }
+
+        print!("{}", display_row);
+    }
+}
 
 fn print_debug_info(cpu: &Cpu, program_name: &str) {
     for (i, v) in cpu.v_reg.iter().enumerate() {
@@ -77,6 +97,8 @@ pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
 
         if example_program || debug_mode {
             print_debug_info(&cpu, program_name);
+        } else {
+            draw_screen(&cpu.display);
         }
 
         cpu.tick();
