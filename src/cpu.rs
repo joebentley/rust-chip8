@@ -100,6 +100,23 @@ impl Cpu {
         true
     }
 
+    /// Execute next 2-byte instruction from memory, msb first.
+    /// Only execute if `self.running` is true
+    pub fn tick(&mut self) {
+        // NOTE: "If a program includes sprite data, it should be padded so any
+        // instructions following it will be properly situated in RAM."
+
+        if self.running {
+            let ins = (self.memory[self.prog_counter as usize] as u16) << 8
+                | self.memory[self.prog_counter as usize + 1] as u16;
+
+            self.prog_counter += 2;
+            self.execute(ins);
+        }
+    }
+
+    /// Execute two-byte instruction given by `instruction`
+    /// Does not change program counter unless `instruction` triggers a skip or jump
     pub fn execute(&mut self, instruction: u16) {
         match instruction {
             // CLS: clear screen
@@ -677,5 +694,19 @@ mod tests {
         assert_eq!(cpu.keys, 0b0000_0000_0000_0100);
         assert!(!cpu.press_key(0x0));
         assert!(!cpu.press_key(0x10));
+    }
+
+    #[test]
+    fn tick() {
+        let mut cpu = Cpu::new();
+        cpu.prog_counter = 0x200;
+        cpu.memory[0x200] = 0x63;
+        cpu.memory[0x201] = 0x12;
+        cpu.tick();
+        assert_eq!(cpu.prog_counter, 0x202);
+        assert_eq!(cpu.v_reg[3], 0x12);
+        cpu.running = false;
+        cpu.tick();
+        assert_eq!(cpu.prog_counter, 0x202);
     }
 }
