@@ -5,11 +5,12 @@ use std::thread;
 use std::time::Duration;
 use std::io;
 use std::io::{Read, Write};
+use std::path::Path;
 
 use termion::raw::IntoRawMode;
 use termion::async_stdin;
 
-fn print_debug_info(cpu: &Cpu) {
+fn print_debug_info(cpu: &Cpu, program_name: &str) {
     for (i, v) in cpu.v_reg.iter().enumerate() {
         print!("{}", termion::cursor::Goto(1, (i + 1) as u16));
         print!("V{} = {:X}", i, v);
@@ -21,12 +22,14 @@ fn print_debug_info(cpu: &Cpu) {
     print!("PC = {:X}", cpu.prog_counter);
     print!("{}", termion::cursor::Goto(1, 19));
     print!("SP = {:X}", cpu.stack_pointer);
+    print!("{}", termion::cursor::Goto(1, 20));
+    print!("prog name = {}", program_name);
 
     print!("{}", termion::cursor::Goto(1, 24));
     print!("press q to exit");
 }
 
-fn load_cpu_from_program_file(filepath: Option<&String>) -> (Cpu, bool) {
+fn load_cpu_from_program_file(filepath: Option<&str>) -> (Cpu, bool) {
     let mut cpu = Cpu::new();
     let mut example = false;
 
@@ -43,7 +46,7 @@ fn load_cpu_from_program_file(filepath: Option<&String>) -> (Cpu, bool) {
     (cpu, example)
 }
 
-pub fn run_terminal(filepath: Option<&String>) {
+pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
     let term_size = termion::terminal_size().unwrap();
     if term_size.0 < 64 || term_size.1 < 32 {
         eprintln!("window size needs to be at least 64x32");
@@ -64,11 +67,16 @@ pub fn run_terminal(filepath: Option<&String>) {
         thread::sleep(Duration::from_secs(2));
     }
 
+    let program_name = match filepath {
+        Some(path) => Path::new(path).file_stem().unwrap().to_str().unwrap(),
+        None => "Example"
+    };
+
     loop {
         print!("{}", termion::clear::All);
 
-        if example_program {
-            print_debug_info(&cpu);
+        if example_program || debug_mode {
+            print_debug_info(&cpu, program_name);
         }
 
         cpu.tick();
@@ -89,4 +97,24 @@ pub fn run_terminal(filepath: Option<&String>) {
         thread::sleep(Duration::from_millis(100));
     }
     print!("{}", termion::cursor::Show);
+}
+
+pub fn parse_args_and_run_terminal(args: Vec<String>) {
+    let mut debug = false;
+    let mut filepath = None;
+
+    for (i, arg) in args.iter().enumerate() {
+        if arg == "-d" {
+            debug = true;
+        }
+
+        if arg == "-f" {
+            match args.get(i + 1) {
+                Some(arg) => filepath = Some(arg.as_str()),
+                None => {}
+            }
+        }
+    }
+
+    run_terminal(filepath, debug);
 }
