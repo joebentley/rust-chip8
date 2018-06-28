@@ -283,10 +283,12 @@ impl Cpu {
                         line = line << (64 - 8 - x);
                         mask = mask << (64 - 8 - x);
                     }
-                    let overwrote = line & self.display.pixels[y as usize + i as usize] & mask != 0;
+                    let pixel_row = (y as usize + i as usize) % 32;
+
+                    let overwrote = line & self.display.pixels[pixel_row] & mask != 0;
                     self.v_reg[0xF] = overwrote as u8;
 
-                    self.display.pixels[y as usize + i as usize] ^= line;
+                    self.display.pixels[pixel_row] ^= line;
                 }
             },
             // Ex9E - SKP Vx: skip next instruction if key with the value of Vx is pressed
@@ -579,7 +581,6 @@ mod tests {
 
         assert_eq!(cpu.v_reg[0xF], 0);
         for i in 0..3 {
-            println!("{:b}", cpu.display.pixels[y as usize + i]);
             assert_eq!(cpu.display.pixels[y as usize + i], (sprite[i] as u64) << (64 - 8 - x));
         }
 
@@ -590,7 +591,7 @@ mod tests {
             assert_eq!(cpu.display.pixels[y as usize + i], 0);
         }
 
-        // Wrapping around edge of screen
+        // Wrapping around right/left of screen
         let x = 60;
         let x_to_edge = 64 - x;
         cpu.execute(0x6000 + x);
@@ -606,6 +607,24 @@ mod tests {
         assert_eq!(cpu.v_reg[0xF], 1);
         for i in 0..3 {
             assert_eq!(cpu.display.pixels[y as usize + i], 0);
+        }
+
+        // Wrapping around bottom/top of screen
+        let x = 6;
+        let y = 31;
+        cpu.execute(0x6000 + x);
+        cpu.execute(0x6100 + y);
+        cpu.execute(0xD013);
+        let shift = 64 - 8 - x;
+        assert_eq!(cpu.display.pixels[y as usize], (sprite[0] as u64) << shift);
+        assert_eq!(cpu.display.pixels[0], (sprite[1] as u64) << shift);
+        assert_eq!(cpu.display.pixels[1], (sprite[2] as u64) << shift);
+
+        // Overwriting current pixels
+        cpu.execute(0xD013);
+        assert_eq!(cpu.v_reg[0xF], 1);
+        for i in 0..3 {
+            assert_eq!(cpu.display.pixels[(y as usize + i) % 32], 0);
         }
     }
 
