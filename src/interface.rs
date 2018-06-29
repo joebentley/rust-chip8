@@ -10,7 +10,7 @@ use std::path::Path;
 use termion::raw::IntoRawMode;
 use termion::async_stdin;
 
-fn draw_screen(display: &Display) {
+fn draw_screen_terminal(display: &Display) {
     for (y, row) in display.pixels.iter().enumerate() {
 
         let mut display_row = String::new();
@@ -30,7 +30,7 @@ fn draw_screen(display: &Display) {
     }
 }
 
-fn print_debug_info(cpu: &Cpu, program_name: &str) {
+fn print_debug_info_terminal(cpu: &Cpu, program_name: &str) {
     for (i, v) in cpu.v_reg.iter().enumerate() {
         print!("{}", termion::cursor::Goto(1, (i + 1) as u16));
         print!("V{} = {:X}", i, v);
@@ -96,9 +96,9 @@ pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
         print!("{}", termion::clear::All);
 
         if example_program || debug_mode {
-            print_debug_info(&cpu, program_name);
+            print_debug_info_terminal(&cpu, program_name);
         } else {
-            draw_screen(&cpu.display);
+            draw_screen_terminal(&cpu.display);
         }
 
         cpu.tick();
@@ -140,7 +140,7 @@ pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
     print!("{}", termion::cursor::Show);
 }
 
-pub fn parse_args_and_run_terminal(args: Vec<String>) {
+pub fn parse_args_and_run(args: Vec<String>, f: fn(filepath: Option<&str>, debug_mode: bool)) {
     let mut debug = false;
     let mut filepath = None;
 
@@ -157,5 +157,5 @@ pub fn parse_args_and_run_terminal(args: Vec<String>) {
         }
     }
 
-    run_terminal(filepath, debug);
+    f(filepath, debug);
 }

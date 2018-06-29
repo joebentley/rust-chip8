@@ -9,4 +9,4 @@ pub use cpu::Cpu;
 
 pub mod interface;
 pub use interface::run_terminal;
-pub use interface::parse_args_and_run_terminal;
+pub use interface::parse_args_and_run;
