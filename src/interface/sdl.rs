@@ -3,7 +3,7 @@ use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
-use std::time::Duration;
+use std::time::Instant;
 
 use cpu::{Cpu, Display};
 
@@ -44,24 +44,33 @@ pub fn run(filepath: Option<&str>, _debug_mode: bool) {
 
     let (mut cpu, _) = Cpu::from_program_file(filepath);
 
-    'running: loop {
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.clear();
+    let mut cpu_timer = Instant::now();
+    let mut sdl_timer = Instant::now();
 
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit {..} |
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    break 'running
-                },
-                _ => {}
+    'running: loop {
+        if sdl_timer.elapsed().subsec_nanos() > 1_000_000_000u32 / 60 {
+            canvas.set_draw_color(Color::RGB(0, 0, 0));
+            canvas.clear();
+
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. } |
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'running
+                    },
+                    _ => {}
+                }
             }
+
+            draw_screen(&cpu.display, &mut canvas);
+            canvas.present();
+
+            sdl_timer = Instant::now();
         }
 
-        draw_screen(&cpu.display, &mut canvas);
-        cpu.tick();
-
-        canvas.present();
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+        if cpu_timer.elapsed().subsec_nanos() > 1_000_000_000u32 / 540 {
+            cpu.tick();
+            cpu_timer = Instant::now();
+        }
     }
 }
