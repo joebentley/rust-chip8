@@ -66,7 +66,7 @@ fn load_cpu_from_program_file(filepath: Option<&str>) -> (Cpu, bool) {
     (cpu, example)
 }
 
-pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
+pub fn run(filepath: Option<&str>, debug_mode: bool) {
     let term_size = termion::terminal_size().unwrap();
     if term_size.0 < 64 || term_size.1 < 32 {
         eprintln!("window size needs to be at least 64x32");
@@ -138,24 +138,4 @@ pub fn run_terminal(filepath: Option<&str>, debug_mode: bool) {
     }
 
     print!("{}", termion::cursor::Show);
-}
-
-pub fn parse_args_and_run(args: Vec<String>, f: fn(filepath: Option<&str>, debug_mode: bool)) {
-    let mut debug = false;
-    let mut filepath = None;
-
-    for (i, arg) in args.iter().enumerate() {
-        if arg == "-d" {
-            debug = true;
-        }
-
-        if arg == "-f" {
-            match args.get(i + 1) {
-                Some(arg) => filepath = Some(arg.as_str()),
-                None => {}
-            }
-        }
-    }
-
-    f(filepath, debug);
 }

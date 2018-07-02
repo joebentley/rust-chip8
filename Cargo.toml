@@ -6,3 +6,4 @@ authors = ["Joe Bentley <joebentley10@gmail.com>"]
 [dependencies]
 "rand" = "0.5.2"
 "termion" = "*"
+"sdl" = "*"
