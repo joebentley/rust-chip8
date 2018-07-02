@@ -1,6 +1,7 @@
 use utils::get_nth_hex_digit;
 use rand;
 use std::time;
+use std::fs;
 
 const NUM_ROWS: usize = 32;
 
@@ -71,6 +72,23 @@ impl Cpu {
         ));
 
         cpu
+    }
+
+    pub fn from_program_file(filepath: Option<&str>) -> (Cpu, bool) {
+        let mut cpu = Cpu::new();
+        let mut example = false;
+
+        // load program into RAM
+        let bytes = match filepath {
+            Some(filepath) => fs::read(filepath).unwrap(),
+            None => {
+                example = true;
+                vec![0x62, 0x01, 0xF2, 0x1E, 0x12, 0x00]
+            } // example program
+        };
+        cpu.write_bytes(0x200, bytes.as_slice());
+        cpu.prog_counter = 0x200;
+        (cpu, example)
     }
 
     /// Set key to down, where `key` is between 0x1 and 0xF

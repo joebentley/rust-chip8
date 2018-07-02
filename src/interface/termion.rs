@@ -1,6 +1,5 @@
 use termion;
 use cpu::{Cpu, Display};
-use std::fs;
 use std::thread;
 use std::time::Duration;
 use std::io;
@@ -10,7 +9,7 @@ use std::path::Path;
 use termion::raw::IntoRawMode;
 use termion::async_stdin;
 
-fn draw_screen_terminal(display: &Display) {
+fn draw_screen(display: &Display) {
     for (y, row) in display.pixels.iter().enumerate() {
 
         let mut display_row = String::new();
@@ -30,7 +29,7 @@ fn draw_screen_terminal(display: &Display) {
     }
 }
 
-fn print_debug_info_terminal(cpu: &Cpu, program_name: &str) {
+fn print_debug_info(cpu: &Cpu, program_name: &str) {
     for (i, v) in cpu.v_reg.iter().enumerate() {
         print!("{}", termion::cursor::Goto(1, (i + 1) as u16));
         print!("V{} = {:X}", i, v);
@@ -49,23 +48,6 @@ fn print_debug_info_terminal(cpu: &Cpu, program_name: &str) {
     print!("press q to exit");
 }
 
-fn load_cpu_from_program_file(filepath: Option<&str>) -> (Cpu, bool) {
-    let mut cpu = Cpu::new();
-    let mut example = false;
-
-    // load program into RAM
-    let bytes = match filepath {
-        Some(filepath) => fs::read(filepath).unwrap(),
-        None => {
-            example = true;
-            vec![0x62, 0x01, 0xF2, 0x1E, 0x12, 0x00]
-        } // example program
-    };
-    cpu.write_bytes(0x200, bytes.as_slice());
-    cpu.prog_counter = 0x200;
-    (cpu, example)
-}
-
 pub fn run(filepath: Option<&str>, debug_mode: bool) {
     let term_size = termion::terminal_size().unwrap();
     if term_size.0 < 64 || term_size.1 < 32 {
@@ -73,7 +55,7 @@ pub fn run(filepath: Option<&str>, debug_mode: bool) {
         return
     }
 
-    let (mut cpu, example_program) = load_cpu_from_program_file(filepath);
+    let (mut cpu, example_program) = Cpu::from_program_file(filepath);
 
     let stdout = io::stdout();
     let mut stdout = stdout.lock().into_raw_mode().unwrap();
@@ -96,9 +78,9 @@ pub fn run(filepath: Option<&str>, debug_mode: bool) {
         print!("{}", termion::clear::All);
 
         if example_program || debug_mode {
-            print_debug_info_terminal(&cpu, program_name);
+            print_debug_info(&cpu, program_name);
         } else {
-            draw_screen_terminal(&cpu.display);
+            draw_screen(&cpu.display);
         }
 
         cpu.tick();
