@@ -27,6 +27,6 @@ pub fn parse_args_and_run(args: Vec<String>) {
     if termion_mode {
         termion::run(filepath, debug);
     } else {
-//        sdl::run(filepath, debug);
+        sdl::run(filepath, debug);
     }
 }
