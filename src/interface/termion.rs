@@ -1,5 +1,4 @@
 use termion;
-use cpu::{Cpu, Display};
 use std::thread;
 use std::time::Duration;
 use std::io;
@@ -8,6 +7,8 @@ use std::path::Path;
 
 use termion::raw::IntoRawMode;
 use termion::async_stdin;
+
+use cpu::{Cpu, Display};
 
 fn draw_screen(display: &Display) {
     for (y, row) in display.pixels.iter().enumerate() {
